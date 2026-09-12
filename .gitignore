@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*$py.class
+downloads/
+.env
+venv/
+.venv/
+*.log
+.DS_Store
+cookies.txt

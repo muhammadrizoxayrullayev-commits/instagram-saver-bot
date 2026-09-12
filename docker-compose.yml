@@ -1,0 +1,9 @@
+services:
+  bot:
+    build: .
+    container_name: instagram_saver_bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./downloads:/app/downloads
