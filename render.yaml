@@ -1,8 +1,7 @@
 services:
-  - type: worker
-    name: instagram-link-saver-bot
-    env: python
-    region: frankfurt
+  - type: web
+    name: instagram-saver-bot
+    runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py

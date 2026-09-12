@@ -13,6 +13,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
+from aiohttp import web
 from config import BOT_TOKEN, BOT_VERSION, DOWNLOADS_DIR
 from downloader import cleanup_expired_files, FFMPEG_PATH
 from handlers import start, instagram, callbacks, admin
@@ -26,6 +27,30 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger("InstagramBot")
+
+
+async def health_check(request):
+    """Render uchun 24/7 jonli tekshiruv (health check)."""
+    return web.Response(text="Instagram Saver Bot 24/7 is Active!")
+
+
+async def start_web_server():
+    """Render bulutida bepul ishlashi uchun portni ochish."""
+    port_str = os.getenv("PORT")
+    if not port_str:
+        return
+    try:
+        port = int(port_str)
+        app = web.Application()
+        app.router.add_get("/", health_check)
+        app.router.add_get("/health", health_check)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
+        logger.info(f"Render Web Server port {port} da muvaffaqiyatli ishga tushdi.")
+    except Exception as e:
+        logger.warning(f"Web serverni ishga tushirishda xatolik: {e}")
 
 
 async def main():
@@ -62,6 +87,9 @@ async def main():
 
     # Vaqtinchalik keshni tozalash fon vazifasini ishga tushirish
     asyncio.create_task(cleanup_expired_files())
+
+    # Agar Render yoki boshqa hostingda bo'lsa, web serverni ishga tushirish
+    asyncio.create_task(start_web_server())
 
     # Bot ma'lumotlarini olish
     try:
