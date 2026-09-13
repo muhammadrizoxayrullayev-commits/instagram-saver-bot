@@ -4,26 +4,60 @@ import os
 import sys
 from pathlib import Path
 
-# Windows konsolida emojilar to'g'ri chiqishi uchun UTF-8 ga moslash
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+# Loyiha papkasini doimo asosiy ishchi katalog qilish
+BASE_DIR = Path(__file__).resolve().parent
+os.chdir(BASE_DIR)
+
+
+class SafeStream:
+    """Fon rejimida quvur uzilishi (WinError 233) yoki None stdout xatolarini bartaraf etadi."""
+    def __init__(self, target_file, original_stream=None):
+        self.target_file = target_file
+        self.original_stream = original_stream
+
+    def write(self, s):
+        try:
+            if self.original_stream and hasattr(self.original_stream, "write"):
+                self.original_stream.write(s)
+                return
+        except Exception:
+            pass
+        try:
+            with open(self.target_file, "a", encoding="utf-8", errors="replace") as f:
+                f.write(s)
+        except Exception:
+            pass
+
+    def flush(self):
+        try:
+            if self.original_stream and hasattr(self.original_stream, "flush"):
+                self.original_stream.flush()
+        except Exception:
+            pass
+
+    def reconfigure(self, *args, **kwargs):
+        pass
+
+
+sys.stdout = SafeStream(BASE_DIR / "bot.log", sys.stdout)
+sys.stderr = SafeStream(BASE_DIR / "bot.log", sys.stderr)
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
+import aiohttp
 from aiohttp import web
 from config import BOT_TOKEN, BOT_VERSION, DOWNLOADS_DIR
 from downloader import cleanup_expired_files, FFMPEG_PATH
 from handlers import start, instagram, callbacks, admin
 
-# Log sozlamalari
+# Log sozlamalari (konsolga va bot.log fayliga yoziladi)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - [%(levelname)s] - %(name)s - %(message)s",
     handlers=[
+        logging.FileHandler(BASE_DIR / "bot.log", encoding="utf-8"),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -49,6 +83,31 @@ async def start_web_server():
         logger.info(f"Render Web Server 0.0.0.0:{port} da muvaffaqiyatli ishga tushdi.")
     except Exception as e:
         logger.warning(f"Web serverni ishga tushirishda xatolik: {e}")
+
+
+async def anti_sleep_ping():
+    """Render va bulutli serverlarda 15 daqiqada uxlab qolmasligi uchun
+    har 9 daqiqada o'z tashqi URL manziliga so'rov yuborib turadi (Self-Ping)."""
+    await asyncio.sleep(60)  # Dastlab server to'liq ko'tarilishini kutamiz
+
+    url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("PING_URL")
+    if not url:
+        logger.info("Anti-Sleep: RENDER_EXTERNAL_URL topilmadi (lokal rejimda ishlayapti).")
+        return
+
+    target = f"{url.rstrip('/')}/health"
+    logger.info(f"Anti-Sleep (Self-Ping) tizimi faollashtirildi: {target}")
+
+    async with aiohttp.ClientSession() as session:
+        while True:
+            try:
+                async with session.get(target, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    logger.info(f"Anti-Sleep: Server muvaffaqiyatli uyg'oq saqlandi (Status: {response.status})")
+            except Exception as e:
+                logger.warning(f"Anti-Sleep ping xatosi: {e}")
+
+            # Render 15 daqiqada uxlab qoladi, shuning uchun har 9 daqiqada (540 soniya) chaqiramiz
+            await asyncio.sleep(540)
 
 
 async def main():
@@ -89,6 +148,9 @@ async def main():
     # Agar Render yoki boshqa hostingda bo'lsa, web serverni ishga tushirish
     asyncio.create_task(start_web_server())
 
+    # Render va boshqa serverlar uchun Anti-Sleep (Self-Ping)
+    asyncio.create_task(anti_sleep_ping())
+
     # Bot ma'lumotlarini olish
     try:
         bot_user = await bot.get_me()
@@ -99,17 +161,48 @@ async def main():
         logger.error(f"Telegram API bilan ulanishda xatolik: {e}")
         return
 
-    # Pollingni ishga tushirish
+    # Pollingni ishga tushirish (handle_signals=False fon rejimida barqaror ishlashi uchun)
     try:
         # Avvalgi to'planib qolgan eskirgan xabarlarni o'chirish (drop_pending_updates=True)
         await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot)
+        await dp.start_polling(bot, handle_signals=False)
     finally:
         await bot.session.close()
 
 
+async def run_bot_with_auto_restart():
+    """Tarmoq yoki API xatosi bo'lsa ham bot to'xtamasdan avtomatik qayta ulanadi."""
+    while True:
+        try:
+            await main()
+            # Agar BOT_TOKEN kiritilmagan bo'lsa to'xtaymiz
+            if not BOT_TOKEN or BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE":
+                break
+            logger.warning("Bot asosiy sikli tugadi. 3 soniyadan so'ng qayta ishga tushiriladi...")
+            await asyncio.sleep(3)
+        except (KeyboardInterrupt, SystemExit):
+            logger.info("Bot to'xtatildi.")
+            break
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            logger.error(f"Kutilmagan xatolik yuz berdi:\n{err_msg}")
+            try:
+                with open(BASE_DIR / "crash.log", "a", encoding="utf-8") as f:
+                    f.write(err_msg + "\n" + "="*40 + "\n")
+            except Exception:
+                pass
+            await asyncio.sleep(5)
+
+
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        asyncio.run(run_bot_with_auto_restart())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot to'xtatildi.")
+    except Exception as e:
+        import traceback
+        with open(BASE_DIR / "crash.log", "a", encoding="utf-8") as f:
+            f.write(traceback.format_exc() + "\n")
+
+

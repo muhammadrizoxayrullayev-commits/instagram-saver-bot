@@ -1,12 +1,16 @@
 @echo off
 chcp 65001 > nul
-title Instagram Video & Music Saver Bot
+title Instagram Video & Music Saver Bot (24/7 Auto-Restart)
+
+:bot_loop
+cls
 echo =======================================================
-echo    Instagram Video & Music Saver Bot ishga tushirilmoqda...
+echo    Instagram Video & Music Saver Bot ishga tushdi...
+echo    (Bot to'xtab qolmasligi uchun avto-qayta ishga tushish yoqilgan)
 echo =======================================================
 python main.py
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo Xatolik yuz berdi! Iltimos, yuqoridagi xabarni o'qing.
-    pause
-)
+echo.
+echo [OGOHLANTIRISH] Bot to'xtadi. 5 soniyada avtomatik qayta ishga tushirilmoqda...
+timeout /t 5 > nul
+goto bot_loop
+

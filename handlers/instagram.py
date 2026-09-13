@@ -113,6 +113,12 @@ async def handle_instagram_message(message: Message):
                 "🔒 <b>Ushbu post yoki profil yopiq (Private)!</b>\n\n"
                 "Faqat ommaviy (Public) profil va postlarni yuklab olish mumkin."
             )
+        elif "empty media response" in err_text:
+            error_message = (
+                "⚠️ <b>Instagram cheklovi!</b>\n\n"
+                "Instagram serveri hozirda ushbu videoni anonim yuklashga ruxsat bermadi.\n"
+                "Botga <code>cookies.txt</code> ulanishi talab etiladi yoki birozdan keyin qayta urinib ko'ring."
+            )
         else:
             error_message = (
                 "❌ <b>Videoni yuklab olishda xatolik yuz berdi.</b>\n\n"
