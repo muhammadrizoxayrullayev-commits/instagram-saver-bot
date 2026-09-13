@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -31,16 +32,13 @@ logger = logging.getLogger("InstagramBot")
 
 async def health_check(request):
     """Render uchun 24/7 jonli tekshiruv (health check)."""
-    return web.Response(text="Instagram Saver Bot 24/7 is Active!")
+    return web.Response(text="Instagram Saver Bot 24/7 is Active!", status=200)
 
 
 async def start_web_server():
     """Render bulutida bepul ishlashi uchun portni ochish."""
-    port_str = os.getenv("PORT")
-    if not port_str:
-        return
     try:
-        port = int(port_str)
+        port = int(os.getenv("PORT", "8080"))
         app = web.Application()
         app.router.add_get("/", health_check)
         app.router.add_get("/health", health_check)
@@ -48,7 +46,7 @@ async def start_web_server():
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", port)
         await site.start()
-        logger.info(f"Render Web Server port {port} da muvaffaqiyatli ishga tushdi.")
+        logger.info(f"Render Web Server 0.0.0.0:{port} da muvaffaqiyatli ishga tushdi.")
     except Exception as e:
         logger.warning(f"Web serverni ishga tushirishda xatolik: {e}")
 
@@ -56,9 +54,9 @@ async def start_web_server():
 async def main():
     """Botning asosiy ishga tushish funksiyasi."""
     print("=" * 60)
-    print(f"🚀 Instagram Media & Music Downloader Bot v{BOT_VERSION}")
-    print(f"📂 Yuklab olish papkasi: {DOWNLOADS_DIR}")
-    print(f"🎬 FFmpeg yo'li: {FFMPEG_PATH}")
+    print(f"Instagram Media & Music Downloader Bot v{BOT_VERSION}")
+    print(f"Yuklab olish papkasi: {DOWNLOADS_DIR}")
+    print(f"FFmpeg yo'li: {FFMPEG_PATH}")
     print("=" * 60)
 
     # Token tekshiruvi
@@ -95,8 +93,8 @@ async def main():
     try:
         bot_user = await bot.get_me()
         logger.info(f"Bot muvaffaqiyatli ishga tushdi: @{bot_user.username} ({bot_user.first_name})")
-        print(f"✅ Bot Telegramda faol: https://t.me/{bot_user.username}")
-        print("💡 Noutbukingizni o'chirganda ham 24/7 ishlashi uchun DEPLOY_GUIDE_UZ.md ni o'qing.")
+        print(f"Bot Telegramda faol: https://t.me/{bot_user.username}")
+        print("Noutbukingizni o'chirganda ham 24/7 ishlashi uchun DEPLOY_GUIDE_UZ.md ni o'qing.")
     except Exception as e:
         logger.error(f"Telegram API bilan ulanishda xatolik: {e}")
         return
