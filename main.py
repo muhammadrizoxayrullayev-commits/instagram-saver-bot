@@ -64,6 +64,16 @@ logging.basicConfig(
 logger = logging.getLogger("InstagramBot")
 
 
+# Dispatcher va routerlarni faqat bir marta sozlash
+dp = Dispatcher()
+dp.include_router(admin.router)
+dp.include_router(start.router)
+dp.include_router(callbacks.router)
+dp.include_router(instagram.router)
+
+_background_tasks_started = False
+
+
 async def health_check(request):
     """Render uchun 24/7 jonli tekshiruv (health check)."""
     return web.Response(text="Instagram Saver Bot 24/7 is Active!", status=200)
@@ -72,7 +82,7 @@ async def health_check(request):
 async def start_web_server():
     """Render bulutida bepul ishlashi uchun portni ochish."""
     try:
-        port = int(os.getenv("PORT", "8080"))
+        port = int(os.getenv("PORT", "8085"))
         app = web.Application()
         app.router.add_get("/", health_check)
         app.router.add_get("/health", health_check)
@@ -112,6 +122,7 @@ async def anti_sleep_ping():
 
 async def main():
     """Botning asosiy ishga tushish funksiyasi."""
+    global _background_tasks_started
     print("=" * 60)
     print(f"Instagram Media & Music Downloader Bot v{BOT_VERSION}")
     print(f"Yuklab olish papkasi: {DOWNLOADS_DIR}")
@@ -129,27 +140,18 @@ async def main():
         )
         return
 
-    # Bot va Dispatcher yaratish
+    # Bot yaratish
     bot = Bot(
         token=BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
-    dp = Dispatcher()
 
-    # Routerlarni ulash (tartib muhim: aniq komandalar birinchi)
-    dp.include_router(admin.router)
-    dp.include_router(start.router)
-    dp.include_router(callbacks.router)
-    dp.include_router(instagram.router)
-
-    # Vaqtinchalik keshni tozalash fon vazifasini ishga tushirish
-    asyncio.create_task(cleanup_expired_files())
-
-    # Agar Render yoki boshqa hostingda bo'lsa, web serverni ishga tushirish
-    asyncio.create_task(start_web_server())
-
-    # Render va boshqa serverlar uchun Anti-Sleep (Self-Ping)
-    asyncio.create_task(anti_sleep_ping())
+    # Fon vazifalarini faqat bir marta ishga tushirish
+    if not _background_tasks_started:
+        asyncio.create_task(cleanup_expired_files())
+        asyncio.create_task(start_web_server())
+        asyncio.create_task(anti_sleep_ping())
+        _background_tasks_started = True
 
     # Bot ma'lumotlarini olish
     try:

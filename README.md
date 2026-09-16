@@ -15,8 +15,6 @@ Quyidagi tugmani bosing va botni bepul serverda 24/7 uzluksiz ishga tushiring:
 ### Sozlash:
 1. Yuqoridagi **Deploy to Render** tugmasini bosing.
 2. Render.com saytida GitHub orqali kiring.
-3. `BOT_TOKEN` so'ralganda ushbu tokenni qo'ying:
-   ```
-   8670836080:AAEvSEA1h_L6wlI8VOHn47hxuTRSmaQsYIg
-   ```
+3. `BOT_TOKEN` so'ralganda o'zingizning [@BotFather](https://t.me/BotFather) dan olingan yangi bot tokeningizni kiriting.
 4. **Apply / Deploy** tugmasini bosing!
+

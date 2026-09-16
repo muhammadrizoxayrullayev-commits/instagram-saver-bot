@@ -14,3 +14,4 @@ echo [OGOHLANTIRISH] Bot to'xtadi. 5 soniyada avtomatik qayta ishga tushirilmoqd
 timeout /t 5 > nul
 goto bot_loop
 
+
